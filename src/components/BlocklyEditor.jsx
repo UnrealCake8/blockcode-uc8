@@ -6,11 +6,10 @@ function loadWorkspace(workspace) {
   try {
     const saved = localStorage.getItem("u8code-workspace");
     if (!saved) return;
-
     const state = JSON.parse(saved);
     Blockly.serialization.workspaces.load(state, workspace);
   } catch {
-    // Ignore broken saved data
+    // ignore broken saved data
   }
 }
 
@@ -19,16 +18,20 @@ function saveWorkspace(workspace) {
     const state = Blockly.serialization.workspaces.save(workspace);
     localStorage.setItem("u8code-workspace", JSON.stringify(state));
   } catch {
-    // Ignore save errors
+    // ignore save issues
   }
 }
 
-export default function BlocklyEditor({
-  onWorkspaceReady,
-  onWorkspaceChange
-}) {
+export default function BlocklyEditor({ onWorkspaceReady, onWorkspaceChange }) {
   const blocklyDiv = useRef(null);
   const workspaceRef = useRef(null);
+  const readyRef = useRef(onWorkspaceReady);
+  const changeRef = useRef(onWorkspaceChange);
+
+  useEffect(() => {
+    readyRef.current = onWorkspaceReady;
+    changeRef.current = onWorkspaceChange;
+  }, [onWorkspaceReady, onWorkspaceChange]);
 
   useEffect(() => {
     defineU8CodeBlocks();
@@ -60,17 +63,13 @@ export default function BlocklyEditor({
     workspaceRef.current = workspace;
 
     loadWorkspace(workspace);
+    readyRef.current?.(workspace);
 
-    onWorkspaceReady?.(workspace);
-
-    const changeListener = (event) => {
+    const listener = (event) => {
       if (event.type === Blockly.Events.UI) return;
-
       saveWorkspace(workspace);
-      onWorkspaceChange?.(workspace);
+      changeRef.current?.(workspace);
     };
-
-    workspace.addChangeListener(changeListener);
 
     const resizeWorkspace = () => {
       if (workspaceRef.current) {
@@ -78,20 +77,19 @@ export default function BlocklyEditor({
       }
     };
 
-    const timeoutId = setTimeout(() => {
-      resizeWorkspace();
-    }, 100);
+    workspace.addChangeListener(listener);
 
+    const timeoutId = setTimeout(resizeWorkspace, 100);
     window.addEventListener("resize", resizeWorkspace);
 
     return () => {
       clearTimeout(timeoutId);
       window.removeEventListener("resize", resizeWorkspace);
-      workspace.removeChangeListener(changeListener);
+      workspace.removeChangeListener(listener);
       workspace.dispose();
       workspaceRef.current = null;
     };
-  }, [onWorkspaceReady, onWorkspaceChange]);
+  }, []);
 
   return <div ref={blocklyDiv} className="editorCanvas" />;
 }
