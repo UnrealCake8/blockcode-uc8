@@ -212,7 +212,7 @@ function BuilderPage({ user, onLogout }) {
       return;
     }
 
-    exportProjectZip(code, projectName || "u8code-site");
+    exportProjectZip(code, projectName || "blockcode-web");
   }
 
   return (
